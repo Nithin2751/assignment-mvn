@@ -113,14 +113,22 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image to Nexus') {
+        stage('Push Artifact to Nexus') {
             steps {
                 script {
-                    def imageTag = "${NEXUS_DOCKER_REPO}/my-app:${BUILD_NUMBER}"
-                    withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID, usernameVariable: 'NEXUS_USER', passwordVariable: 'PASSWORD')]) {
+                    def version      = "1.0.${BUILD_NUMBER}"
+                    def artifactId   = "my-app"
+                    def groupPath    = "com/mycompany/app"
+                    def nexusPath    = "${groupPath}/${artifactId}/${version}"
+                    def finalArtifact= "${artifactId}-${version}.jar"
+                    sh "mv tagged-artifacts/my-app-${BUILD_NUMBER}.jar tagged-artifacts/${finalArtifact}"
+                    withCredentials([usernamePassword(credentialsId: NEXUS_CRED_ID,
+                                                      usernameVariable: 'NEXUS_USER',
+                                                      passwordVariable: 'NEXUS_PASS')]) {
                         sh """
-                            echo $PASSWORD | docker login ${NEXUS_DOCKER_REPO} -u \$NEXUS_USER --password-stdin
-                            docker push ${imageTag}
+                          curl -u $NEXUS_USER:$NEXUS_PASS \\
+                               --upload-file tagged-artifacts/${finalArtifact} \\
+                               ${NEXUS_URL}/${nexusPath}/${finalArtifact}
                         """
                     }
                 }
