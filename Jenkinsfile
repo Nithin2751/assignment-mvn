@@ -112,23 +112,22 @@ pipeline {
                 }
             }
         }
-
         stage('Push Docker Image to Nexus') {
-        steps {
-        script {
-            def imageTag = "${NEXUS_DOCKER_REPO}/my-app:${BUILD_NUMBER}"
-            withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID,
-                                              usernameVariable: 'NEXUS_USER',
-                                              passwordVariable: 'NEXUS_PASS')]) {
-                sh '''
-                  echo "$NEXUS_PASS" | docker login ${NEXUS_DOCKER_REPO} -u "$NEXUS_USER" --password-stdin
-                  docker push ${imageTag}
-                  docker logout ${NEXUS_DOCKER_REPO}
-                '''
+            steps {
+                script {
+                    def imageTag = "${NEXUS_DOCKER_REPO}/my-app:${BUILD_NUMBER}"
+                    withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID,
+                                                      usernameVariable: 'NEXUS_USER',
+                                                      passwordVariable: 'NEXUS_PASS')]) {
+                        sh '''
+                          echo "$NEXUS_PASS" | docker login ${NEXUS_DOCKER_REPO} -u "$NEXUS_USER" --password-stdin
+                          docker push ${imageTag}
+                          docker logout ${NEXUS_DOCKER_REPO}
+                        '''
+                    }
+                }
             }
         }
-    }
-}
 
 
         stage('Delete Old Sonar Projects') {
