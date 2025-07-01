@@ -7,7 +7,7 @@ pipeline {
         GIT_REPO_URL = 'https://github.com/Nithin2751/assignment-mvn.git'
 
         SONAR_URL = 'http://18.234.44.116:30900'
-        SONAR_TOKEN = credentials('sonar-token')
+        SONAR_TOKEN = 'sonar-cred'
         MAX_BUILDS_TO_KEEP = 5
 
         NEXUS_URL = 'http://18.234.44.116:30801/repository/sample-releases/'
