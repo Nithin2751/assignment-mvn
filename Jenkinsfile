@@ -5,7 +5,7 @@ pipeline {
         GIT_REPO_URL = 'https://github.com/Nithin2751/assignment-mvn.git'
         SONAR_URL = 'http://18.234.44.116:30900'
         SONAR_CRED_ID = 'sonar-cred'
-        NEXUS_URL = 'http://18.234.44.116:30801/repository/sample-releases'
+        NEXUS_URL = 'http://18.234.44.116:30001/repository/sample-releases'
         NEXUS_DOCKER_REPO = '18.234.44.116:30002'
         NEXUS_CREDENTIAL_ID = 'nexus-cred'
         MAX_BUILDS_TO_KEEP = 5
