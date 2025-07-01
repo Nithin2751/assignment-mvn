@@ -4,7 +4,7 @@ pipeline {
     environment {
         JAVA_HOME = "/usr/lib/jvm/java-21-amazon-corretto.x86_64"
         PATH = "${JAVA_HOME}/bin:${env.PATH}"
-        GIT_REPO_URL = 'xxx'
+        GIT_REPO_URL = 'https://github.com/Nithin2751/assignment-mvn.git'
         SONAR_URL = 'http://http://18.234.44.116:30900/'
         SONAR_TOKEN = 'squ_b57ff614bc7015d4ff052fae43041f2410d8156d'
         SONAR_CRED_ID = 'sonar-cred'
