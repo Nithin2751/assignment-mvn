@@ -5,13 +5,12 @@ pipeline {
         JAVA_HOME = "/usr/lib/jvm/java-21-amazon-corretto.x86_64"
         PATH = "${JAVA_HOME}/bin:${env.PATH}"
         GIT_REPO_URL = 'https://github.com/Nithin2751/assignment-mvn.git'
-        SONAR_URL = 'http://http://18.234.44.116:30900/'
-        SONAR_TOKEN = 'squ_b57ff614bc7015d4ff052fae43041f2410d8156d'
+        SONAR_URL = 'http://18.234.44.116:30900'
         SONAR_CRED_ID = 'sonar-cred'
-        MAX_BUILDS_TO_KEEP = 5
-        NEXUS_URL = 'http://http://18.234.44.116:30801//repository/sample-releases/'
-        NEXUS_DOCKER_REPO = 'http://18.234.44.116:30002' // Updated to correct HTTP port
+        NEXUS_URL = 'http://18.234.44.116:30801/repository/sample-releases/'
+        NEXUS_DOCKER_REPO = '18.234.44.116:30002'
         NEXUS_CREDENTIAL_ID = 'nexus-cred'
+        MAX_BUILDS_TO_KEEP = 5
     }
 
     tools {
@@ -29,10 +28,10 @@ pipeline {
             steps {
                 script {
                     def projectName = "${env.JOB_NAME}-${env.BUILD_NUMBER}".replace('/', '-')
-                    withCredentials([usernamePassword(credentialsId: "${SONAR_CRED_ID}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
                         sh """
-                        curl -s -o /dev/null -w "%{http_code}" -u $USERNAME:$PASSWORD -X POST \
-                          "${SONAR_URL}/api/projects/create?project=${projectName}&name=${projectName}" || true
+                            curl -s -o /dev/null -w "%{http_code}" -u admin:$SONAR_TOKEN -X POST \
+                            "${SONAR_URL}/api/projects/create?project=${projectName}&name=${projectName}" || true
                         """
                     }
                 }
@@ -43,12 +42,14 @@ pipeline {
             steps {
                 script {
                     def projectName = "${env.JOB_NAME}-${env.BUILD_NUMBER}".replace('/', '-')
-                    sh """
-                    mvn clean verify sonar:sonar \
-                      -Dsonar.projectKey=${projectName} \
-                      -Dsonar.host.url=${SONAR_URL} \
-                      -Dsonar.login=${SONAR_TOKEN}
-                    """
+                    withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
+                        sh """
+                            mvn clean verify sonar:sonar \
+                            -Dsonar.projectKey=${projectName} \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=$SONAR_TOKEN
+                        """
+                    }
                 }
             }
         }
@@ -82,9 +83,9 @@ pipeline {
 
                     withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIAL_ID}", usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh """
-                        curl -u $NEXUS_USER:$NEXUS_PASS \
-                             --upload-file tagged-artifacts/${finalArtifact} \
-                             ${NEXUS_URL}${nexusPath}/${finalArtifact}
+                            curl -u $NEXUS_USER:$NEXUS_PASS \
+                                 --upload-file tagged-artifacts/${finalArtifact} \
+                                 ${NEXUS_URL}${nexusPath}/${finalArtifact}
                         """
                     }
                 }
@@ -95,11 +96,11 @@ pipeline {
             steps {
                 script {
                     writeFile file: 'Dockerfile', text: """
-                    FROM openjdk:21-jdk-slim
-                    WORKDIR /app
-                    COPY tagged-artifacts/my-app-*.jar app.jar
-                    EXPOSE 8080
-                    ENTRYPOINT ["java", "-jar", "app.jar"]
+                        FROM openjdk:21-jdk-slim
+                        WORKDIR /app
+                        COPY tagged-artifacts/my-app-*.jar app.jar
+                        EXPOSE 8080
+                        ENTRYPOINT ["java", "-jar", "app.jar"]
                     """
                 }
             }
@@ -120,9 +121,9 @@ pipeline {
                     def imageTag = "${NEXUS_DOCKER_REPO}/my-app:${BUILD_NUMBER}"
                     withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIAL_ID}", usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh """
-                            echo $NEXUS_PASS | docker login http://${NEXUS_DOCKER_REPO} -u $NEXUS_USER --password-stdin
+                            echo $NEXUS_PASS | docker login ${NEXUS_DOCKER_REPO} -u $NEXUS_USER --password-stdin
                             docker push ${imageTag}
-                            docker logout http://${NEXUS_DOCKER_REPO}
+                            docker logout ${NEXUS_DOCKER_REPO}
                         """
                     }
                 }
@@ -136,14 +137,13 @@ pipeline {
                     def minBuildToKeep = currentBuild - MAX_BUILDS_TO_KEEP.toInteger()
 
                     if (minBuildToKeep > 0) {
-                        withCredentials([usernamePassword(credentialsId: "${SONAR_CRED_ID}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
                             for (int i = 1; i <= minBuildToKeep; i++) {
                                 def oldProject = "${env.JOB_NAME}-${i}".replace('/', '-')
                                 echo "Deleting old Sonar project: ${oldProject}"
                                 sh """
-                                curl -s -o /dev/null -w "%{http_code}" -u $USERNAME:$PASSWORD -X POST \
-                                  "${SONAR_URL}/api/projects/delete" \
-                                  -d "project=${oldProject}" || true
+                                    curl -s -o /dev/null -w "%{http_code}" -u admin:$SONAR_TOKEN -X POST \
+                                    "${SONAR_URL}/api/projects/delete" -d "project=${oldProject}" || true
                                 """
                             }
                         }
