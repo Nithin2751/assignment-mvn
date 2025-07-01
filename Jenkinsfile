@@ -119,11 +119,12 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID,
                                                       usernameVariable: 'NEXUS_USER',
                                                       passwordVariable: 'NEXUS_PASS')]) {
-                        sh '''
-                          echo "$NEXUS_PASS" | docker login ${NEXUS_DOCKER_REPO} -u "$NEXUS_USER" --password-stdin
+                        sh """
+                          echo \$NEXUS_PASS | docker login http://${NEXUS_DOCKER_REPO} -u \$NEXUS_USER --password-stdin
                           docker push ${imageTag}
-                          docker logout ${NEXUS_DOCKER_REPO}
-                        '''
+                          docker logout http://${NEXUS_DOCKER_REPO}
+                        """
+
                     }
                 }
             }
