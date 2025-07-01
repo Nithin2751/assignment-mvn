@@ -119,7 +119,7 @@ pipeline {
                     def imageTag = "${NEXUS_DOCKER_REPO}/my-app:${BUILD_NUMBER}"
                     withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID, usernameVariable: 'NEXUS_USER', passwordVariable: 'PASSWORD')]) {
                         sh """
-                            echo \$PASSWORD | docker login ${NEXUS_DOCKER_REPO} -u \$NEXUS_USER --password-stdin
+                            echo $PASSWORD | docker login ${NEXUS_DOCKER_REPO} -u \$NEXUS_USER --password-stdin
                             docker push ${imageTag}
                         """
                     }
