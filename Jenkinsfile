@@ -2,18 +2,17 @@ pipeline {
     agent any
 
     environment {
-        JAVA_HOME = "/usr/lib/jvm/java-21-amazon-corretto"
-        PATH = "${JAVA_HOME}/bin:${env.PATH}"
         GIT_REPO_URL = 'https://github.com/Nithin2751/assignment-mvn.git'
         SONAR_URL = 'http://18.234.44.116:30900'
         SONAR_CRED_ID = 'sonar-cred'
-        MAX_BUILDS_TO_KEEP = 5
         NEXUS_URL = 'http://18.234.44.116:30801/repository/sample-releases'
         NEXUS_DOCKER_REPO = '18.234.44.116:30002'
         NEXUS_CREDENTIAL_ID = 'nexus-cred'
+        MAX_BUILDS_TO_KEEP = 5
     }
 
     tools {
+        jdk 'java-21'
         maven 'maven-3.9.10'
     }
 
@@ -30,8 +29,8 @@ pipeline {
                     def projectName = "${env.JOB_NAME}-${env.BUILD_NUMBER}".replace('/', '-')
                     withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
                         sh """
-                        curl -s -o /dev/null -w "%{http_code}" -u admin:$SONAR_TOKEN -X POST \
-                          "${SONAR_URL}/api/projects/create?project=${projectName}&name=${projectName}" || true
+                        curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $SONAR_TOKEN" -X POST \
+                        "${SONAR_URL}/api/projects/create?project=${projectName}&name=${projectName}" || true
                         """
                     }
                 }
@@ -45,9 +44,9 @@ pipeline {
                     withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
                         sh """
                         mvn clean verify sonar:sonar \
-                          -Dsonar.projectKey=${projectName} \
-                          -Dsonar.host.url=${SONAR_URL} \
-                          -Dsonar.login=$SONAR_TOKEN
+                            -Dsonar.projectKey=${projectName} \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=${SONAR_TOKEN}
                         """
                     }
                 }
@@ -77,7 +76,9 @@ pipeline {
                     def nexusPath = "${groupPath}/${artifactId}/${version}"
                     def finalArtifact = "${artifactId}-${version}.jar"
 
-                    sh "mv tagged-artifacts/my-app-${BUILD_NUMBER}.jar tagged-artifacts/${finalArtifact}"
+                    sh """
+                        mv tagged-artifacts/my-app-${BUILD_NUMBER}.jar tagged-artifacts/${finalArtifact}
+                    """
 
                     withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIAL_ID}", usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh """
@@ -119,9 +120,9 @@ pipeline {
                     def imageTag = "${NEXUS_DOCKER_REPO}/my-app:${BUILD_NUMBER}"
                     withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIAL_ID}", usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh """
-                            echo $NEXUS_PASS | docker login ${NEXUS_DOCKER_REPO} -u $NEXUS_USER --password-stdin
-                            docker push ${imageTag}
-                            docker logout ${NEXUS_DOCKER_REPO}
+                        echo $NEXUS_PASS | docker login ${NEXUS_DOCKER_REPO} -u $NEXUS_USER --password-stdin
+                        docker push ${imageTag}
+                        docker logout ${NEXUS_DOCKER_REPO}
                         """
                     }
                 }
@@ -131,8 +132,8 @@ pipeline {
         stage('Delete Old Sonar Projects') {
             steps {
                 script {
-                    def currentBuild = env.BUILD_NUMBER.toInteger()
-                    def minBuildToKeep = currentBuild - MAX_BUILDS_TO_KEEP.toInteger()
+                    def currentBuildNum = env.BUILD_NUMBER.toInteger()
+                    def minBuildToKeep = currentBuildNum - MAX_BUILDS_TO_KEEP.toInteger()
 
                     if (minBuildToKeep > 0) {
                         withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
@@ -140,7 +141,7 @@ pipeline {
                                 def oldProject = "${env.JOB_NAME}-${i}".replace('/', '-')
                                 echo "Deleting old Sonar project: ${oldProject}"
                                 sh """
-                                curl -s -o /dev/null -w "%{http_code}" -u admin:$SONAR_TOKEN -X POST \
+                                curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $SONAR_TOKEN" -X POST \
                                   "${SONAR_URL}/api/projects/delete" \
                                   -d "project=${oldProject}" || true
                                 """
