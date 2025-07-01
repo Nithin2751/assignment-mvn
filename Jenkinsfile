@@ -17,6 +17,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git url: "${GIT_REPO_URL}", branch: 'master'
@@ -29,8 +30,8 @@ pipeline {
                     def projectName = "${env.JOB_NAME}-${env.BUILD_NUMBER}".replace('/', '-')
                     withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
                         sh """
-                        curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $SONAR_TOKEN" -X POST \
-                        "${SONAR_URL}/api/projects/create?project=${projectName}&name=${projectName}" || true
+                            curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer \$SONAR_TOKEN" -X POST \
+                            "${SONAR_URL}/api/projects/create?project=${projectName}&name=${projectName}" || true
                         """
                     }
                 }
@@ -43,10 +44,10 @@ pipeline {
                     def projectName = "${env.JOB_NAME}-${env.BUILD_NUMBER}".replace('/', '-')
                     withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
                         sh """
-                        mvn clean verify sonar:sonar \
-                            -Dsonar.projectKey=${projectName} \
-                            -Dsonar.host.url=${SONAR_URL} \
-                            -Dsonar.login=${SONAR_TOKEN}
+                            mvn clean verify sonar:sonar \
+                                -Dsonar.projectKey=${projectName} \
+                                -Dsonar.host.url=${SONAR_URL} \
+                                -Dsonar.login=\$SONAR_TOKEN
                         """
                     }
                 }
@@ -76,15 +77,13 @@ pipeline {
                     def nexusPath = "${groupPath}/${artifactId}/${version}"
                     def finalArtifact = "${artifactId}-${version}.jar"
 
-                    sh """
-                        mv tagged-artifacts/my-app-${BUILD_NUMBER}.jar tagged-artifacts/${finalArtifact}
-                    """
+                    sh "mv tagged-artifacts/my-app-${BUILD_NUMBER}.jar tagged-artifacts/${finalArtifact}"
 
                     withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIAL_ID}", usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh """
-                        curl -u $NEXUS_USER:$NEXUS_PASS \
-                             --upload-file tagged-artifacts/${finalArtifact} \
-                             ${NEXUS_URL}/${nexusPath}/${finalArtifact}
+                            curl -u \$NEXUS_USER:\$NEXUS_PASS \
+                                 --upload-file tagged-artifacts/${finalArtifact} \
+                                 ${NEXUS_URL}/${nexusPath}/${finalArtifact}
                         """
                     }
                 }
@@ -118,12 +117,11 @@ pipeline {
             steps {
                 script {
                     def imageTag = "${NEXUS_DOCKER_REPO}/my-app:${BUILD_NUMBER}"
-                     withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIAL_ID}", usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
-                    sh """
-                        echo $PASSWORD | docker login ${NEXUS_DOCKER_REPO} -u $USERNAME --password-stdin
-
-                        docker push ${imageTag}
-                        docker logout ${NEXUS_DOCKER_REPO}
+                    withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIAL_ID}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        sh """
+                            echo \$PASSWORD | docker login ${NEXUS_DOCKER_REPO} -u \$USERNAME --password-stdin
+                            docker push ${imageTag}
+                            docker logout ${NEXUS_DOCKER_REPO}
                         """
                     }
                 }
@@ -140,11 +138,11 @@ pipeline {
                         withCredentials([string(credentialsId: "${SONAR_CRED_ID}", variable: 'SONAR_TOKEN')]) {
                             for (int i = 1; i <= minBuildToKeep; i++) {
                                 def oldProject = "${env.JOB_NAME}-${i}".replace('/', '-')
-                                echo "Deleting old Sonar project: ${oldProject}"
+                                echo "🧹 Deleting old Sonar project: ${oldProject}"
                                 sh """
-                                curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $SONAR_TOKEN" -X POST \
-                                  "${SONAR_URL}/api/projects/delete" \
-                                  -d "project=${oldProject}" || true
+                                    curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer \$SONAR_TOKEN" -X POST \
+                                    "${SONAR_URL}/api/projects/delete" \
+                                    -d "project=${oldProject}" || true
                                 """
                             }
                         }
